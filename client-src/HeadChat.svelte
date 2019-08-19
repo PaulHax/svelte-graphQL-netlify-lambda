@@ -1,0 +1,196 @@
+
+<style>
+/* https://codepen.io/Varo/pen/YPmwpQ?editors=1100 */
+
+	.WrapChat {
+		height: 100vh;
+	}
+
+	.chat {
+		display: flex;
+    flex-direction: column;
+		height: 100%;
+	}
+
+	#sendMessageForm {
+		display: flex;
+    flex-direction: row;
+	}
+
+	textarea, 
+	pre {
+		margin: 0;
+		padding: 0;
+		outline: 0;
+		border: 0;
+	}
+
+	.expandingArea {
+		position: relative;
+		border: 1px solid #888;
+		background: #fff;
+		border-radius: .5em;
+
+		flex-grow: 1;
+	}
+
+	.expandingArea > textarea,
+	.expandingArea > pre {
+		padding: .25em .5em;
+		background: transparent;
+		/* font: 400 13px/16px helvetica, arial, sans-serif; */
+		font-family: Ubuntu, Helvetica Neue, sans-serif;
+		font-size: 18px;
+		/* Make the text soft-wrap */
+		white-space: pre-wrap;
+		word-wrap: break-word;
+		word-break: break-all;
+
+		/* min-height:200px; */
+	}
+
+	.expandingArea > textarea {
+		/* The border-box box model is used to allow
+		* padding whilst still keeping the total width at containing element.
+		*/
+		box-sizing: border-box;
+		width: 100%;
+		/* This height is used when JS is disabled */
+		height: 100px;
+	}
+
+	.expandingArea.active > textarea {		
+		/* overflow: hidden; *//* Hide any scrollbars */
+		position: absolute;
+		top: 0;
+		left: 0;
+		height: 100%;
+		resize: none;
+	}
+
+	.expandingArea > pre {
+		display: none;
+	}
+	.expandingArea.active > pre {
+		display: block;
+		/* Hide the text; just using it for sizing */
+		visibility: hidden;
+		max-height: 144px;
+	}
+
+	#sendButton { 
+		background: none;
+    border: none;
+		padding: 0 2px;
+    margin: auto;
+	}
+  #sendButton svg {
+    width: 30px;
+    height: 30px;
+    text-align: center;
+  }
+  #sendButton:hover {
+    cursor: pointer;
+	}
+	#sendButton svg path {
+    fill: #33F;
+	}
+  #sendButton:hover svg path {
+    fill: #66F;
+	}
+
+</style>
+
+<div class='WrapChat'>
+
+<div class="chat">
+
+	{#await preloading}
+		<p>Preloading Messages....</p>
+	{:then preloaded}
+		<MessageList {...preloaded} />
+	{:catch error}
+		<p>Error preloading messages: {error}</p>
+	{/await}
+
+	<form action="" id="sendMessageForm">
+		<div class="expandingArea active" id='editMsgGroup'>
+			<pre><span bind:this={hiddenTextSpan}></span><br></pre>
+			<textarea bind:this={messageTextInput} on:keypress={onKeyPress} placeholder={PLACE_HOLDER} />
+		</div>
+		<button id="sendButton" form="sendMessageForm" on:click|preventDefault={sendMessage}>
+			<svg viewBox="0 0 24 24">
+				<path fill="#424242" d="M2,21L23,12L2,3V10L17,12L2,14V21Z" />
+			</svg>
+		</button>
+	</form>
+
+</div>
+
+</div>
+
+<script>
+	import { onMount, tick, beforeUpdate, afterUpdate } from 'svelte';
+	import { fade } from 'svelte/transition';
+	import MessageList, { preload } from './MessageList.svelte';
+	import { mutate, query } from 'svelte-apollo';
+	import { client, myName } from './data';
+	import { MESSAGES, CREATE_MESSAGE } from '../shared/queries';
+	
+
+	// Approximate sapper preload
+	const preloading = preload();
+
+	let messageTextInput;
+	let hiddenTextSpan;
+	
+	const PLACE_HOLDER = 'Type here';
+
+	async function sendMessage() {
+		let messageText = messageTextInput.value.trim();		
+		if (messageText !== '') {
+			let msgAuthor = $myName;
+			if (messageText.slice(0, 5) == '/nick') {
+				let newName = messageText.slice(6);
+				messageText = `${$myName} changed their nickname to ${newName}`;
+				$myName = newName;
+				msgAuthor = 'System';
+			}
+			try {
+				await mutate(client, {
+					mutation: CREATE_MESSAGE,
+					variables: { author: msgAuthor, text: messageText },
+					refetchQueries: [{ query: MESSAGES }]
+				});//.then(data => console.log(data, client));
+			} catch(error) {
+				console.log(error); //todo make user visible
+			}
+		}
+		messageTextInput.value = '';
+		messageTextInput.focus(); //Enable typing right away when send button clicked
+		hiddenTextSpan.textContent = messageTextInput.value;
+	}
+
+	//http://alistapart.com/article/expanding-text-areas-made-elegant/
+	function makeExpandingArea(container) {
+		let area = container.querySelector('textarea');
+		let span = container.querySelector('span');
+		area.addEventListener('input', function() {
+			span.textContent = area.value;
+		}, false);
+		span.textContent = area.value;
+	}
+
+	function onKeyPress(event) {
+    if(event.which === 13 && !event.shiftKey) {
+				sendMessage();
+        event.preventDefault(); // Prevents the addition of a new line in the text field
+		} //Todo If new line and textarea height grows, we loose end of message list.
+	}
+
+	onMount(() => {
+		makeExpandingArea(document.getElementById('editMsgGroup'));
+		messageTextInput.focus();
+	});
+	
+</script>
