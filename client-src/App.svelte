@@ -3,7 +3,7 @@
 
 	export let name;
 
-	fetch("/.netlify/functions/hello-mundo")
+	fetch("/.netlify/functions/hello-world")
       .then(response => response.json())
       .then(json => console.log(json))
 </script>
