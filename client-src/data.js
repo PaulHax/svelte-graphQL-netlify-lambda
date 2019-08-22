@@ -3,7 +3,7 @@ import { writable } from 'svelte/store';
 import { gql } from 'apollo-boost';
 
 export const client = new ApolloClient({
-  uri: '/.netlify/functions/graphQL'
+  uri: '/.netlify/functions/graphQLEndpoint'
 });
 
 export const myName = writable('New Head');
