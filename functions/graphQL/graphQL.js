@@ -1,48 +1,48 @@
-const { ApolloServer } = require ('apollo-server-lambda')
-const { GraphQLClient } = require ('graphql-request')
-const { typeDefs } = require ('./schema')
+const { ApolloServer } = require("apollo-server-lambda");
+const { createHttpLink } = require("apollo-link-http");
+const fetch = require("node-fetch");
 const {
-  MESSAGES,
-  CREATE_MESSAGE,
-} = require ('./queries');
+  //introspectSchema,
+  makeRemoteExecutableSchema
+} = require("graphql-tools");
+const { typeDefs } = require("./schema-build")
 
 exports.handler = async function(event, context) {
-
-  const client = new GraphQLClient("https://graphql.fauna.com/graphql", {
-    headers: {
-      authorization: `Bearer ${process.env.FAUNADB_FUNCTIONS_SECRET}`,
-    }
-  })
-
-
-  const resolvers = {
-    Query: {
-      messages: async (_, args, context) => {
-        const response = await client.request(MESSAGES)
-        console.log(response)
-        return response.messages
-      }
-    },
-    Mutation: {
-      createMessage: async (_, args , context) => {
-        const { data } = args;
-        const response = await client.request(CREATE_MESSAGE, {msgData: data})
-        console.log(response)
-        return response.createMessage
-      }
-    }
+  /** required for Fauna GraphQL auth */
+  if (!process.env.FAUNADB_FUNCTIONS_SECRET) {
+    const msg = `
+    FAUNADB_FUNCTIONS_SECRET missing. 
+    Did you forget to install the fauna addon or forgot to run inside Netlify Dev?
+    `;
+    console.error(msg);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ msg })
+    };
   }
+  // const b64encodedSecret = Buffer.from(
+  //   process.env.FAUNADB_FUNCTIONS_SECRET + ":" // weird but they
+  // ).toString("base64");
+  // const headers = { Authorization: `Basic ${b64encodedSecret}` };
 
+  const headers = { Authorization: `Bearer ${process.env.FAUNADB_FUNCTIONS_SECRET}` };
+
+  /** standard creation of apollo-server executable schema */
+  const link = createHttpLink({
+    uri: "https://graphql.fauna.com/graphql", // modify as you see fit
+    fetch,
+    headers
+  });
+  //const schema = await introspectSchema(link);
+  const executableSchema = makeRemoteExecutableSchema({
+    schema: typeDefs,
+    link
+  });
   const server = new ApolloServer({
-    typeDefs,
-    resolvers
-  })
-
-  //exports.handler = server.createHandler()
-  console.log(event)
+    schema: executableSchema
+  });
   return new Promise((yay, nay) => {
     const cb = (err, args) => (err ? nay(err) : yay(args));
     server.createHandler()(event, context, cb);
   });
-
-}
+};

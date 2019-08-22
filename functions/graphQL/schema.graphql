@@ -1,0 +1,8 @@
+type Message {
+  author: String
+  text: String
+}
+
+type Query {
+  messages: [Message!]!
+}

@@ -1,6 +1,5 @@
 <script context="module">
-	import { client } from './data';
-	import { MESSAGES } from '../shared/queries'
+	import { client, MESSAGES } from './data';
 
   export async function preload() {
     return {
@@ -62,7 +61,7 @@
 		margin: 2px 0;
 		list-style-type: none;
 
-		max-height: 300px;
+		/* max-height: 300px; */
 	}
 
 	.messages li {

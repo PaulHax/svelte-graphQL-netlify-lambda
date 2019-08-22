@@ -2,4 +2,3 @@
 node_modules
 public/bundle.*
 .netlify
-functions-build

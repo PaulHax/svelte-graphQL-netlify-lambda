@@ -1,4 +1,4 @@
-const { gql } = require('graphql-tag')
+//const { gql } = require('graphql-tag')
 
 exports.typeDefs = `
 directive @embedded on OBJECT
@@ -17,14 +17,14 @@ type Message {
   _id: ID!
   # The document's timestamp.
   _ts: Long!
-  author: String!
-  text: String!
+  author: String
+  text: String
 }
 
 # 'Message' input values
 input MessageInput {
-  author: String!
-  text: String!
+  author: String
+  text: String
 }
 
 # The pagination object for elements of type 'Message'.

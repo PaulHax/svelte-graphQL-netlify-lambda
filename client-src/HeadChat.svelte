@@ -1,15 +1,10 @@
-
 <style>
 /* https://codepen.io/Varo/pen/YPmwpQ?editors=1100 */
 
-	.WrapChat {
-		height: 100vh;
-	}
-
 	.chat {
 		display: flex;
-    flex-direction: column;
-		height: 100%;
+		flex-direction: column;
+		max-height: 100%;
 	}
 
 	#sendMessageForm {
@@ -101,9 +96,9 @@
 
 </style>
 
-<div class='WrapChat'>
-
 <div class="chat">
+
+<h1>Hello {$myName}!</h1>
 
 	{#await preloading}
 		<p>Preloading Messages....</p>
@@ -127,15 +122,12 @@
 
 </div>
 
-</div>
-
 <script>
 	import { onMount, tick, beforeUpdate, afterUpdate } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import MessageList, { preload } from './MessageList.svelte';
 	import { mutate, query } from 'svelte-apollo';
-	import { client, myName } from './data';
-	import { MESSAGES, CREATE_MESSAGE } from '../shared/queries';
+	import { client, myName, MESSAGES, CREATE_MESSAGE } from './data';
 	
 
 	// Approximate sapper preload
@@ -160,8 +152,33 @@
 				await mutate(client, {
 					mutation: CREATE_MESSAGE,
 					variables: { author: msgAuthor, text: messageText },
-					refetchQueries: [{ query: MESSAGES }]
-				});//.then(data => console.log(data, client));
+					optimisticResponse: {
+            createMessage: {
+							_id: Math.round(Math.random() * -1000000),
+              __typename: "Message",
+              author: msgAuthor,
+              text: messageText
+						}
+					},
+					update:  (dataProxy, { data: { createMessage } }) => {
+						try {
+							const data = dataProxy.readQuery({ query: MESSAGES });
+							if(data) {
+								if (!data.messages.data.find(msgCache => msgCache._id === createMessage._id)) {
+									//data.messages.data.push(createMessage);
+									dataProxy.writeQuery({ query: MESSAGES, data: {
+										...data,  //no other attributes right now
+										messages: { ...data.messages, data: [...data.messages.data, createMessage] }//push
+									}});
+								}
+							}							
+						} catch (e) {
+								// We should always catch here,
+								// as the cache may be empty or the query may fail
+								console.log(e);
+						}
+					}
+				})//.then(data => console.log(data, client));
 			} catch(error) {
 				console.log(error); //todo make user visible
 			}
