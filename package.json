@@ -30,7 +30,6 @@
   "scripts": {
     "build": "npm-run-all --parallel build:**",
     "build:app": "rollup -c",
-    "build:functions": "netlify-lambda build functions",
     "autobuild": "rollup -c -w",
     "dev": "run-p start:dev autobuild",
     "start": "sirv public --single",
