@@ -72,7 +72,4 @@ type Query {
 }
 
 scalar Time
-
-
 `
-

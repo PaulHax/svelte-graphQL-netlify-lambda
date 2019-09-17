@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 /* sync GraphQL schema to your FaunaDB account - use with 
-netlify dev:exec functions\graphQL\sync-schema.js */
+netlify dev:exec functions\graphQLEndpoint\sync-schema.js 
+*/
 function createFaunaGraphQL() {
   if (!process.env.FAUNADB_FUNCTIONS_SECRET) {
     console.log("No FAUNADB_FUNCTIONS_SECRET in environment, skipping DB setup");
@@ -26,7 +27,8 @@ function createFaunaGraphQL() {
     headers: { Authorization: `Basic ${token}` }
   };
 
-  fetch("https://graphql.fauna.com/import", options)
+  // fetch("https://graphql.fauna.com/import", options)
+  fetch("https://graphql.fauna.com/import?mode=override", options)  
     // // uncomment for debugging
     .then(res => res.text())
     .then(body => {

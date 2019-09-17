@@ -9,13 +9,15 @@ export const client = new ApolloClient({
 export const myName = writable('New Head');
 
 export const MESSAGES = gql`
-  query allMessages {
-    messages {
+  query allMessages($size: Int, $cursor: String)  {
+    messages(_size: $size, _cursor: $cursor) {
       data {
         _id
         author
         text
       }
+      before
+      after
     }
   }
 `;

@@ -1,9 +1,10 @@
 <script context="module">
 	import { client, MESSAGES } from './data';
+	const MSGS_PAGE_SIZE = 20
 
   export async function preload() {
     return {
-      cache: await client.query({ query: MESSAGES })
+      cache: await client.query({ query: MESSAGES, variables: { size: MSGS_PAGE_SIZE, cursor: null} })
     };
 	}
 </script>
@@ -12,47 +13,84 @@
 	import { restore, query } from 'svelte-apollo';
 	import { myName } from './data';
 	
-	const STICKY_SCROLL_SLOP_PIXELS = 20;
+	const AUTOSCROLL_SLOP_PIXELS = 20;
 	
 	let activeMessageView;
-	
+	let shouldAutoscroll;
+
+	let isLoadingMoreMsgs = false;
+	function loadMoreMsgs() {
+		if(!!nextMsgCursor && !isLoadingMoreMsgs) {
+			isLoadingMoreMsgs = true;
+			messages.fetchMore({
+				variables: { cursor: nextMsgCursor, size: MSGS_PAGE_SIZE },
+				updateQuery: (prev, { fetchMoreResult }) => {
+					isLoadingMoreMsgs = false;
+					if (!fetchMoreResult) return prev;
+					
+					nextMsgCursor = fetchMoreResult.messages.after;
+					let retVal = {
+						...fetchMoreResult,
+						messages: {
+							...fetchMoreResult.messages,
+							data: [
+								...prev.messages.data,
+								...fetchMoreResult.messages.data,
+							],
+						}
+					};
+					return retVal;
+				}
+			});
+		}
+	}
+
 	function checkAutoScroll() {
-		autoscroll = activeMessageView && 
+		shouldAutoscroll = isCloseToBottom();
+	}
+
+	function isCloseToBottom(closeThreshold=AUTOSCROLL_SLOP_PIXELS) {
+		return activeMessageView && 
 			(activeMessageView.offsetHeight + activeMessageView.scrollTop) 
-			> (activeMessageView.scrollHeight - STICKY_SCROLL_SLOP_PIXELS);
+			> (activeMessageView.scrollHeight - closeThreshold);
 	}
 
 	function maybeScrollToBottom() {
-		if (autoscroll) activeMessageView.scrollTo(0, activeMessageView.scrollHeight);
+		if (shouldAutoscroll) activeMessageView.scrollTo(0, activeMessageView.scrollHeight);
+		if(isCloseToBottom(80)) {
+			loadMoreMsgs();
+		}
 	}
-  
-	let autoscroll;
+	
 	beforeUpdate(() => {
 		checkAutoScroll();
 	});
 
 	afterUpdate(async () => {
-		await tick(); //seems we must wait for size of scrollHeight to fill in with all messages
+		await tick(); //seems we must wait for scrollHeight to fill in with messages
 		maybeScrollToBottom();
+		checkAutoScroll();
 	});
 
-	function onResize(event) {		
+	function onResize(event) { //todo optomize?
 		maybeScrollToBottom();
 	}
 
-	function onMsgListScroll(event) {
+	function onMsgListScroll(event) { //todo optomize?
 		checkAutoScroll();
+		if(isCloseToBottom(80)) {
+			loadMoreMsgs();
+		}
 	}
 
 	onMount(() => {
-		//scroll to bottom
-		activeMessageView.scrollTo(0, activeMessageView.scrollHeight);
+		activeMessageView.scrollTo(0, activeMessageView.scrollHeight); //scroll to bottom
 	});
 
 	export let cache;
 	restore(client, MESSAGES, cache.data);
-	const messages = query(client, { query: MESSAGES });
-	//$: console.log($messages);
+	let nextMsgCursor = cache.data.messages.after;
+	const messages = query(client, { query: MESSAGES, size: MSGS_PAGE_SIZE, cursor: nextMsgCursor } );
 </script>
 
 <svelte:window on:resize={onResize}/>
@@ -75,16 +113,9 @@
 
 <style>
 	.messages {
-		/* flex-grow: 1; */
-
 		overflow-y: scroll;
-		/* flex-direction: column-reverse; */
-
 		padding: 0;
 		margin: 2px 0;
-		/* list-style-type: none; */
-
-		/* max-height: 300px; */
 	}
 
 	.messages li {

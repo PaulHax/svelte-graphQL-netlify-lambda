@@ -1,0 +1,46 @@
+directive @embedded on OBJECT
+directive @collection(name: String!) on OBJECT
+directive @index(name: String!) on FIELD
+directive @resolver(name: String, paginated: Boolean! = false) on FIELD
+directive @relation(name: String) on FIELD
+directive @unique(index: String) on FIELD
+scalar Date
+
+scalar Long
+
+type Message {
+  _id: ID!
+  _ts: Long!
+  author: String
+  text: String
+}
+
+input MessageInput {
+  author: String
+  text: String
+}
+
+type MessagePage {
+  data: [Message]!
+  after: String
+  before: String
+}
+
+type Mutation {
+  createMessage(data: MessageInput!): Message!
+  updateMessage(
+    id: ID!
+    data: MessageInput!
+  ): Message
+  deleteMessage(id: ID!): Message
+}
+
+type Query {
+  findMessageByID(id: ID!): Message
+  messages(
+    _size: Int
+    _cursor: String
+  ): MessagePage!
+}
+
+scalar Time

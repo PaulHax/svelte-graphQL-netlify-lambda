@@ -1,14 +1,10 @@
 const { ApolloServer } = require("apollo-server-lambda");
 const { createHttpLink } = require("apollo-link-http");
 const fetch = require("node-fetch");
-const {
-  //introspectSchema,
-  makeRemoteExecutableSchema
-} = require("graphql-tools");
+const { makeRemoteExecutableSchema } = require("graphql-tools");
 const { typeDefs } = require("./schema-build")
 
 exports.handler = async function(event, context) {
-  /** required for Fauna GraphQL auth */
   if (!process.env.FAUNADB_FUNCTIONS_SECRET) {
     const msg = `
     FAUNADB_FUNCTIONS_SECRET missing. 
@@ -20,16 +16,11 @@ exports.handler = async function(event, context) {
       body: JSON.stringify({ msg })
     };
   }
-  // const b64encodedSecret = Buffer.from(
-  //   process.env.FAUNADB_FUNCTIONS_SECRET + ":" // weird but they
-  // ).toString("base64");
-  // const headers = { Authorization: `Basic ${b64encodedSecret}` };
 
   const headers = { Authorization: `Bearer ${process.env.FAUNADB_FUNCTIONS_SECRET}` };
 
-  /** standard creation of apollo-server executable schema */
   const link = createHttpLink({
-    uri: "https://graphql.fauna.com/graphql", // modify as you see fit
+    uri: "https://graphql.fauna.com/graphql",
     fetch,
     headers
   });
@@ -46,3 +37,13 @@ exports.handler = async function(event, context) {
     server.createHandler()(event, context, cb);
   });
 };
+
+
+// CreateIndex({
+//   name: "msgs_latest_first",
+//   source: Collection("Message"),
+//   values: [{ field: ["ts"], reverse: true },
+//         {field: ["data", "author"] },
+//         {field: ["data", "text"] }
+//       ]
+// })

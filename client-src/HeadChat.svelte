@@ -126,7 +126,7 @@
 	import { onMount, tick, beforeUpdate, afterUpdate } from 'svelte';
 	import { fade } from 'svelte/transition';
 	import MessageList, { preload } from './MessageList.svelte';
-	import { mutate, query } from 'svelte-apollo';
+	import { mutate } from 'svelte-apollo';
 	import { client, myName, MESSAGES, CREATE_MESSAGE } from './data';
 	
 
@@ -139,7 +139,13 @@
 	const PLACE_HOLDER = 'Type here';
 
 	async function sendMessage() {
-		let messageText = messageTextInput.value.trim();		
+		let messageText = messageTextInput.value.trim(); //save it
+
+		//get ready for more typing!
+		messageTextInput.value = '';
+		messageTextInput.focus(); //Enable typing right away when send button clicked
+		hiddenTextSpan.textContent = messageTextInput.value;
+		
 		if (messageText !== '') {
 			let msgAuthor = $myName;
 			if (messageText.slice(0, 5) == '/nick') {
@@ -160,6 +166,7 @@
               text: messageText
 						}
 					},
+					//on return of mutation, update local cache of message list
 					update:  (dataProxy, { data: { createMessage } }) => {
 						try {
 							const data = dataProxy.readQuery({ query: MESSAGES });
@@ -171,10 +178,9 @@
 										messages: { ...data.messages, data: [...data.messages.data, createMessage] }//push
 									}});
 								}
-							}							
+							}
 						} catch (e) {
-								// We should always catch here,
-								// as the cache may be empty or the query may fail
+								// We should always catch here as the cache may be empty or the query may fail
 								console.log(e);
 						}
 					}
@@ -183,9 +189,7 @@
 				console.log(error); //todo make user visible
 			}
 		}
-		messageTextInput.value = '';
-		messageTextInput.focus(); //Enable typing right away when send button clicked
-		hiddenTextSpan.textContent = messageTextInput.value;
+		
 	}
 
 	//http://alistapart.com/article/expanding-text-areas-made-elegant/
