@@ -1,12 +1,10 @@
 import ApolloClient from 'apollo-boost';
-import { writable } from 'svelte/store';
 import { gql } from 'apollo-boost';
 
 export const client = new ApolloClient({
   uri: '/.netlify/functions/graphQLEndpoint'
 });
 
-export const myName = writable('New Head');
 
 export const MESSAGES = gql`
   query allMessages($size: Int, $cursor: String)  {

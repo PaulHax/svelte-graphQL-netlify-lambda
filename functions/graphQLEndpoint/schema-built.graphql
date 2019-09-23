@@ -27,15 +27,22 @@ type MessagePage {
 }
 
 type Mutation {
-  createMessage(data: MessageInput!): Message!
+  updateUser(
+    id: ID!
+    data: UserInput!
+  ): User
+  createUser(data: UserInput!): User!
   updateMessage(
     id: ID!
     data: MessageInput!
   ): Message
+  createMessage(data: MessageInput!): Message!
   deleteMessage(id: ID!): Message
+  deleteUser(id: ID!): User
 }
 
 type Query {
+  findUserByID(id: ID!): User
   findMessageByID(id: ID!): Message
   messages(
     _size: Int
@@ -44,3 +51,15 @@ type Query {
 }
 
 scalar Time
+
+type User {
+  _id: ID!
+  _ts: Long!
+  username: String!
+  password: String
+}
+
+input UserInput {
+  username: String!
+  password: String
+}

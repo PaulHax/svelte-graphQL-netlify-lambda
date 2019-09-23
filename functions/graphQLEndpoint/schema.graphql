@@ -1,8 +1,13 @@
+type Query {
+  messages: [Message!]!
+}
+
 type Message {
   author: String
   text: String
 }
 
-type Query {
-  messages: [Message!]!
+type User {
+ username: String! @unique
+ password: String
 }

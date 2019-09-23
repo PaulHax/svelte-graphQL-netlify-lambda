@@ -11,7 +11,7 @@
 <script>
 	import { onMount, beforeUpdate, afterUpdate, tick } from 'svelte';
 	import { restore, query } from 'svelte-apollo';
-	import { myName } from './data';
+	import { myName } from './user';
 	
 	const AUTOSCROLL_SLOP_PIXELS = 20;
 	
