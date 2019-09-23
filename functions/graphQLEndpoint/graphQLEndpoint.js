@@ -4,8 +4,7 @@ const { createHttpLink } = require('apollo-link-http')
 const fetch = require('node-fetch')
 const { introspectSchema, makeRemoteExecutableSchema, mergeSchemas } = require('graphql-tools')
 //var bcrypt = require('bcryptjs');
-var jwt = require('jsonwebtoken');
-const { getName } = require('./name-factory')
+const jwt = require('jsonwebtoken')
 
 const getUser = token => {
   try {
@@ -98,7 +97,7 @@ const CREATE_USER = gql`
           if (user) {
             return { username: user.username }
           }
-          return { username: getName() };
+          return null;
         },
       },
       Mutation: {
