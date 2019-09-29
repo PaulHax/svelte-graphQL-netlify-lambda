@@ -2,3 +2,4 @@
 node_modules
 public/bundle.*
 .netlify
+schema-built.graphql

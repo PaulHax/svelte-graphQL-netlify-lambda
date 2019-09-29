@@ -1,43 +1,89 @@
 <script>
-  import { myName, setMyName, isSignedIn, signOut } from './user';
+  import { myName, setMyName, isSignedIn, signOut, authenticate } from './user'; 
+  import netlifyIdentity from 'netlify-identity-widget';
+  import { onMount } from 'svelte';
 
   let userInputBox;
   export async function setNewName(newName) {
     try {
-      const isSuccess = await setMyName(newName);
+      await setMyName(newName);
     } catch(e) {
-      if(e.message.includes('GraphQL error: Instance is not unique')) {
+      if(e.message.includes('GraphQL error: Instance is not unique')) { //todo not needed as name is not unique anymore
         greeting = newName + ' is taken'
       }
       else {
         throw e;
       }
     }
-    enteredUserName = '';
   }
 
   let greeting = 'Hello ';
-  $: if ($myName) {
-    greeting = 'Hello ' + $myName;
+  $: greeting = 'Hello ' + $myName;
+
+
+  async function onSignIn(user) {
+    //get name and possibly create user    
+    const isDuplicateName = await authenticate();
+    if(isDuplicateName) {
+      alert(isDuplicateName + ' is taken so you got a random name.  Type /nick [new name] in the message bar');
+    }
   }
 
-  let enteredUserName = '';
-  function onSignIn() {
-    setNewName(enteredUserName);
-  }
   function onSignOut() {
-    //setNewName(enteredUserName);
     signOut();
   }
+  
+  netlifyIdentity.init();
+  netlifyIdentity.on('login', onSignIn);
+  netlifyIdentity.on('logout', onSignOut);
+
+  function onSignInButton() {
+    netlifyIdentity.open();
+  }
+  function onSignOutButton() {
+    netlifyIdentity.logout();
+  }
+
+
+  onMount(() => {
+    authenticate();
+  });
+
 </script>
 
-{#if $isSignedIn}
-  <button on:click|preventDefault={onSignOut}>Sign Out</button>	
-{:else}
-  <form action="" on:submit|preventDefault={onSignIn}>
-    <input bind:value={enteredUserName} type="text" placeholder="User Name"/>
-    <input disabled={!enteredUserName} type="submit" value="Sign In">
-  </form>
-{/if}
+<div class='userUtil'>
 
-<h1>{greeting}</h1>
+  <h1 class='greeting'>{greeting}</h1>
+
+  <div class='signInForm'>
+    {#if $isSignedIn}
+      <button on:click|preventDefault={onSignOutButton}>Sign Out</button>	
+    {:else}
+      <button on:click|preventDefault={onSignInButton}>Sign In</button>	
+    {/if}
+  </div>
+
+</div>
+
+<style>
+/* https://codepen.io/Varo/pen/YPmwpQ?editors=1100 */
+
+	.userUtil {
+		display: flex;
+	}
+
+  .greeting {
+    display: flex;
+  }
+
+  .signInForm {
+    display: flex; 
+    align-self: center;
+    margin-left: auto;
+  }
+
+  button {
+    display: inline-block;
+  }
+
+</style>

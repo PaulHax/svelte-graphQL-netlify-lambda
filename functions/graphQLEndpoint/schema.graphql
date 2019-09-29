@@ -1,6 +1,9 @@
 type Query {
   messages: [Message!]!
+  findUserByEmail(email: String!): User
+  findUserByName(name: String!): User
 }
+
 
 type Message {
   author: String
@@ -8,6 +11,6 @@ type Message {
 }
 
 type User {
- username: String! @unique
- password: String
+  name: String!
+  email: String! @unique
 }

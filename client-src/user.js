@@ -1,72 +1,93 @@
-import { readable } from 'svelte/store';
-import { gql } from 'apollo-boost';
+import { readable, get } from 'svelte/store';
 import { client } from './data';
 import { mutate } from 'svelte-apollo';
+import { gql } from 'apollo-boost';
 import { getRandomName }  from'./name-factory';
+import netlifyIdentity from 'netlify-identity-widget';
 
-export const SIGN_UP = gql`
-  mutation SignUp($username: String!) {
-    signUp(data: {username: $username, password: null}) {
-      token
-      user {
-        username
-      }
-    }
+const updateUser = gql`
+mutation UpdateUser ($id: ID!, $name: String!, $email: String!) {
+  updateUser( id: $id, data: { name: $name, email: $email } )
+  {
+    name
   }
-`;
+    
+}`
 
-export function setMyName(name) {
-  return mutate(client, {
-    mutation: SIGN_UP,
-    variables: { username: name },
-    update:  (_, { data: { signUp } }) => {
-      setName(signUp.user.username);
-      setIsSignedIn(true);
-      localStorage.setItem('usertoken', JSON.stringify(signUp.token));      
-    }
-  })
+export async function setMyName(name) {  
+  if( get(isSignedIn) ) {
+    let userID = localStorage.getItem('userid');
+    const user = netlifyIdentity.currentUser();
+    const response = await mutate(client, {
+      mutation: updateUser,
+      variables: { id: userID, name: name, email: user.email }
+    });
+    setName(response.data.updateUser.name);
+  }
+  else {
+    setName(name);
+  }
 }
 
 export function signOut() {
-  localStorage.removeItem('usertoken')
+  localStorage.removeItem('nickname');
+  localStorage.removeItem('userid')
   setIsSignedIn(false);
   setName(getRandomName());
+  client.resetStore(); //client.resetStore() to refetch queries. client.clearStore() causes bug on next queries/mutation?
 }
 
 let setIsSignedIn; //todo resolve setup order potental bug with myName 
-export const isSignedIn = readable(false, function start(set) {
+let isIn = false;
+netlifyIdentity.init();
+if(netlifyIdentity.currentUser() != null) {
+  isIn = true;
+}
+export const isSignedIn = readable(isIn, function start(set) {
     setIsSignedIn = set;
   }
 );
 
 let setName;
-export const myName = readable(null, function start(set) {
+let startName = '';
+if (isIn) {
+  startName = localStorage.getItem('nickname');
+}
+export const myName = readable(startName, function start(set) {
     setName = (newName) => { //hide setname just for this module
       set(newName);
+      localStorage.setItem('nickname', newName);
     }
   }
 );
 
-
 const GET_MY_USER = gql`
-  query getMyUser($userToken: String)  {
-    GetMyUser(userToken: $userToken) {
-      username
+  query getMyUser  {
+    GetMyUser {
+      randName
+      user {
+        _id
+        name
+      }
     }
   }
 `;
 
 export async function authenticate() {
-  const userToken = JSON.parse(localStorage.getItem('usertoken'));
-  //const userToken = 'asdfasdf'
-  const { data } = await client.query({ query: GET_MY_USER, variables: { userToken } });
-  
-  if(data.GetMyUser) {
-    setName( data.GetMyUser.username );
-    setIsSignedIn(true);
+  const user = netlifyIdentity.currentUser();
+  if(user) {
+    const { data } = await client.query({ query: GET_MY_USER });  //also creates user if not existing
+    setIsSignedIn(true); 
+    if(data.GetMyUser) {
+      localStorage.setItem('userid', data.GetMyUser.user._id);
+      setName( data.GetMyUser.user.name );
+    }
+    if(data.GetMyUser.randName) {
+      return user.user_metadata.full_name; //name was duplicate
+    }
+    return false;
   }
-  else { //anonymous
-    setName(getRandomName());
-  }
-  
+  //anonymous
+  setName(getRandomName());
+  return null;
 }

@@ -72,11 +72,11 @@
 		checkAutoScroll();
 	});
 
-	function onResize(event) { //todo optomize?
+	function onResize(event) { //ToDo optomize?
 		maybeScrollToBottom();
 	}
 
-	function onMsgListScroll(event) { //todo optomize?
+	function onMsgListScroll(event) { //ToDo optomize?
 		checkAutoScroll();
 		if(isCloseToBottom(80)) {
 			loadMoreMsgs();
@@ -90,7 +90,8 @@
 	export let cache;
 	restore(client, MESSAGES, cache.data);
 	let nextMsgCursor = cache.data.messages.after;
-	const messages = query(client, { query: MESSAGES, size: MSGS_PAGE_SIZE, cursor: nextMsgCursor } );
+	const messages = query(client, { query: MESSAGES, size: MSGS_PAGE_SIZE, 
+		cursor: nextMsgCursor, pollInterval: 0 } ); //30000 ToDo use subscriptions or messaging service. Avoid polling.
 </script>
 
 <svelte:window on:resize={onResize}/>

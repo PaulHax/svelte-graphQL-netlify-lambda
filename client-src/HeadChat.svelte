@@ -34,7 +34,7 @@
 	import UserUtility from './UserUtility.svelte';
 	import { mutate } from 'svelte-apollo';
 	import { client, MESSAGES, CREATE_MESSAGE } from './data';
-	import { myName, setMyName, authenticate } from './user';
+	import { myName, authenticate } from './user';
 	
 	// Approximate sapper preload
 	const preloading = preload();
@@ -115,6 +115,7 @@
 		} //Todo If new line and textarea height grows, we loose end of message list.
 	}
 
+	
 	onMount(() => {
 		makeExpandingArea(document.getElementById('editMsgGroup'));
 		messageTextInput.focus();

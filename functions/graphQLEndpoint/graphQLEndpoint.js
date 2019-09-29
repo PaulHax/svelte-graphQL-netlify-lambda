@@ -5,6 +5,7 @@ const fetch = require('node-fetch')
 const { introspectSchema, makeRemoteExecutableSchema, mergeSchemas } = require('graphql-tools')
 //var bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken')
+const { getRandomName } = require('./name-factory')
 
 const getUser = token => {
   try {
@@ -30,7 +31,33 @@ const generateToken = user => {
   )
 }
 
-exports.handler = async function(event, context) {
+const findUserByEmail = gql`
+query FindUserByEmail ($email: String!) {
+  findUserByEmail(email: $email) {
+    _id
+    name
+  }
+}`
+
+const findUserByName = gql`
+query FindUserByName ($name: String!) {
+  findUserByName(name: $name) {
+    _id
+    name
+  }
+}`
+
+const createUser = gql`
+mutation CreateUser ($name: String!, $email: String!) {
+  createUser(data: {
+  name: $name, email: $email
+  }) {
+    _id
+    name
+  }
+}`
+
+exports.handler = async function(event, lambdaContext) {
   if (!process.env.FAUNADB_FUNCTIONS_SECRET) {
     const msg = `
     FAUNADB_SERVER_SECRET missing. 
@@ -57,33 +84,17 @@ exports.handler = async function(event, context) {
   })
 
   const userTypeDefs = `
-  type Query {
-    GetMyUser(userToken: String): User
-  }
-
-  input SignUpInput {    
-    username: String!
-    password: String
-  }
-
-  type AuthResponse {
-    token: String!
+  type GetMyUserResponse {
+    randName: Boolean!
     user: User!
   }
 
-  type Mutation {
-    signUp(data: SignUpInput!): AuthResponse!
+  type Query {
+    GetMyUser: GetMyUserResponse
   }
   `;
 
-const CREATE_USER = gql`
-  mutation CreateUser($username: String!) {
-    createUser(data: {username: $username, password: null}) {
-      _id
-      username
-    }
-  }
-`;
+
   
   const mergedSchema = mergeSchemas({
     schemas: [
@@ -92,32 +103,50 @@ const CREATE_USER = gql`
     ],
     resolvers: {
       Query: {
-        GetMyUser(obj, { userToken }, context) {
-          const user = getUser(userToken);
+        async GetMyUser(obj, { }, context) { 
+          const { user } = lambdaContext.clientContext;
           if (user) {
-            return { username: user.username }
+            const client = new ApolloClient( { link, cache: new InMemoryCache() } );
+            //if user exists in DB, return name
+            const { data } = await client.query({ query: findUserByEmail, 
+              variables: {email: user.email} });
+            if(data.findUserByEmail && data.findUserByEmail.name) {
+              console.log(data.findUserByEmail)
+              return {
+                randName: false,
+                user: { name: data.findUserByEmail.name, _id: data.findUserByEmail._id }
+              }
+            }
+            else { //make new user
+              //look for duplicates
+              let nickname;
+              let isRandomName = false;
+              const { data } = await client.query({ query: findUserByName, 
+                variables: {name: user.user_metadata.full_name} });
+              if(data.findUserByName && data.findUserByName.name) { //name taken
+                nickname = getRandomName(); //todo name list is not infinite so dups still possible
+                isRandomName = true;
+              }
+              else {
+                nickname = user.user_metadata.full_name;
+              }
+              const variables = {
+                name: nickname,
+                email: user.email
+              };
+              //Todo turning query into mutation on db is probably bad
+              const response = await client.mutate({ mutation: createUser, variables });
+              const dbUser = response.data.createUser;
+              console.log(dbUser)
+              return {
+                randName: isRandomName,
+                user: { name: dbUser.name, _id: dbUser._id }
+              }             
+            }
           }
-          return null;
+          return null; //not logged in
         },
-      },
-      Mutation: {
-        async signUp(_, args, context, info) { //ToDo retry using info.mergeInfo.delegateToSchema
-          //const hashedPass = await bcrypt.hash(args.data.password, 10)
-          const variables = {
-            // password: args.data.name,
-            username: args.data.username
-          };
-          const client = new ApolloClient( { link, cache: new InMemoryCache() } );          
-          const response = await client.mutate({ mutation: CREATE_USER, variables });            
-          const user = response.data.createUser;
-          const token = generateToken(user);
-          //delete user.password
-          return {
-            token: token,
-            user: user
-          }
-        },
-      },
+      }
     },
   });
 
@@ -126,6 +155,6 @@ const CREATE_USER = gql`
   })
   return new Promise((yay, nay) => {
     const cb = (err, args) => (err ? nay(err) : yay(args))
-    server.createHandler()(event, context, cb)
+    server.createHandler()(event, lambdaContext, cb)
   })
 }
